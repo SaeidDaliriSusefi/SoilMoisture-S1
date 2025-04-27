@@ -1,15 +1,10 @@
-var cor = [
-  [48.10178521249212,30.724369816411947],
-  [49.06308892342962,30.724369816411947],
-  [49.06308892342962,31.444134120146206],
-  [48.10178521249212,31.444134120146206],
-  [48.10178521249212,30.724369816411947]
-  ]
+# Load and filter administrative boundaries
+roi = (ee.FeatureCollection("FAO/GAUL_SIMPLIFIED_500m/2015/level2")
+          .filter(ee.Filter.eq('ADM0_NAME', country_name))
+          .filter(ee.Filter.eq('ADM1_NAME', region_name))
+          .filter(ee.Filter.eq('ADM2_NAME', city_name)))
 
-
-var geometry = ee.Geometry.Polygon(cor)
-
-Map.centerObject(geometry);
+Map.centerObject(roi);
 
 var time_start = ee.Date('2017')
 var time_end = ee.Date('2024')
@@ -17,7 +12,7 @@ var time_dif = time_end.difference(time_start, 'day')
 
 var sen1 = ee.ImageCollection("COPERNICUS/S1_GRD")
 .filterDate(time_start, time_end)
-.filterBounds(geometry)
+.filterBounds(roi)
 .filter(ee.Filter.listContains('transmitterReceiverPolarisation','VV'))
 .filter(ee.Filter.eq('instrumentMode','IW')).select('VV')
 
@@ -77,11 +72,11 @@ var des_sigma = des_10days.map(function(img){
   
 var water_mask = ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1").select('label')
 .filterDate(time_start, time_end)
-.filterBounds(geometry).mode().eq(0).not()
+.filterBounds(roi).mode().eq(0).not()
 
 var urban_mask = ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1").select('label')
 .filterDate(time_start, time_end)
-.filterBounds(geometry).mode().eq(6).not()
+.filterBounds(roi).mode().eq(6).not()
 
 
 var asc_min = asc_sigma.min()
@@ -95,7 +90,7 @@ var asc_sm = asc_sigma.map(function(img){
   .set('date', ee.String(date))
   })
   
-Map.addLayer(asc_sm.filterDate('2020','2021').toBands().clip(geometry),[],'sm_asc',false)
+Map.addLayer(asc_sm.filterDate('2020','2021').toBands().clip(roi),[],'sm_asc',false)
 
 var cor2 = [
   [48.54810479257024,30.974198964042525],
@@ -105,10 +100,9 @@ var cor2 = [
   [48.54810479257024,30.974198964042525]
   ]
 
-var geometry2 = ee.Geometry.Polygon(cor2)
 
 print(
-  ui.Chart.image.series(asc_sm, geometry2, ee.Reducer.mean(), 30, 'system:time_start')
+  ui.Chart.image.series(asc_sm, roi, ee.Reducer.mean(), 30, 'system:time_start')
   )
 
 
@@ -124,19 +118,19 @@ var des_sm = des_sigma.map(function(img){
   .set('date', ee.String(date))
   })
   
-Map.addLayer(des_sm.filterDate('2020','2021').toBands().clip(geometry),[],'sm_des',false)
+Map.addLayer(des_sm.filterDate('2020','2021').toBands().clip(roi),[],'sm_des',false)
 
 
 print(
-  ui.Chart.image.series(des_sm, geometry2, ee.Reducer.mean(), 30, 'system:time_start')
+  ui.Chart.image.series(des_sm, roi2, ee.Reducer.mean(), 30, 'system:time_start')
   )
 
 
 Export.image.toDrive({
-  image: des_sm.filterDate('2020','2021').toBands().clip(geometry),
+  image: des_sm.filterDate('2020','2021').toBands().clip(roi),
   description: 'des_sm', 
   scale: 30, 
-  region: geometry, 
+  region: roi, 
   crs: 'EPSG:4326', 
   folder: 'test', 
   maxPixels: 1e13
